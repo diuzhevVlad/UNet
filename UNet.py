@@ -1,4 +1,6 @@
 import torch
+from torchvision.transforms import CenterCrop
+from torch.nn.functional import interpolate
 
 class StackDown(torch.nn.Module):
     def __init__(self,in_channels=1,out_channels=1):
@@ -24,8 +26,14 @@ class StackUp(torch.nn.Module):
             torch.nn.ConvTranspose2d(hidden_channels,out_channels,kernel_size=2,stride=2,padding=0)
         )
     
-    def forward(self, x):
-        return self.layers(x)
+    def forward(self, to_crop, x):
+        if to_crop is not None:
+            (_, _, H, W) = x.shape
+            cropped = CenterCrop([H, W])(to_crop)
+            cat = torch.cat([cropped,x],1)
+            return self.layers(cat)
+        else:
+            return self.layers(x)
     
 class SegmentationHead(torch.nn.Module):
     def __init__(self,in_channels=1,hidden_channels=1,num_classes=2):
@@ -39,8 +47,14 @@ class SegmentationHead(torch.nn.Module):
             # torch.nn.Softmax(1)
         )
     
-    def forward(self, x):
-        return self.layers(x)
+    def forward(self, to_crop, x):
+        if to_crop is not None:
+            (_, _, H, W) = x.shape
+            cropped = CenterCrop([H, W])(to_crop)
+            cat = torch.cat([cropped,x],1)
+            return self.layers(cat)
+        else:
+            return self.layers(x)
     
 
 class UNet(torch.nn.Module):
@@ -52,7 +66,7 @@ class UNet(torch.nn.Module):
             torch.nn.MaxPool2d(kernel_size=2),
             torch.nn.MaxPool2d(kernel_size=2)
         ])
-        self.stack_1 = StackDown(1,64) # 568x568
+        self.stack_1 = StackDown(3,64) # 568x568
         self.stack_2 = StackDown(64,128) # 280x280
         self.stack_3 = StackDown(128,256) # 136x136
         self.stack_4 = StackDown(256,512) # 64x64
@@ -70,9 +84,10 @@ class UNet(torch.nn.Module):
         st_3_res = self.stack_3(self.poolling_list[1](st_2_res))
         st_4_res = self.stack_4(self.poolling_list[2](st_3_res))
 
-        st_5_res = self.stack_5(self.poolling_list[3](st_4_res))
-        st_6_res = self.stack_6(torch.cat([st_4_res[:,:,4:-4,4:-4],st_5_res],1))
-        st_7_res = self.stack_7(torch.cat([st_3_res[:,:,16:-16,16:-16],st_6_res],1))
-        st_8_res = self.stack_8(torch.cat([st_2_res[:,:,40:-40,40:-40],st_7_res],1))
+        st_5_res = self.stack_5(None, self.poolling_list[3](st_4_res))
+        st_6_res = self.stack_6(st_4_res,st_5_res)
+        st_7_res = self.stack_7(st_3_res,st_6_res)
+        st_8_res = self.stack_8(st_2_res,st_7_res)
 
-        return self.seg_head(torch.cat([st_1_res[:,:,88:-88,88:-88],st_8_res],1))
+        classes_mask = self.seg_head(st_1_res,st_8_res)
+        return interpolate(classes_mask,x.shape[2:])
