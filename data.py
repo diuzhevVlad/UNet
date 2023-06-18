@@ -1,9 +1,7 @@
 # import the necessary packages
 import torch
 from torch.utils.data import Dataset
-import cv2
 import PIL.Image
-import numpy as np
 
 class SegmentDataset(Dataset):
 	def __init__(self, images, masks, transforms):
