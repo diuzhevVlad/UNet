@@ -44,7 +44,6 @@ class SegmentationHead(torch.nn.Module):
             torch.nn.Conv2d(hidden_channels,hidden_channels,kernel_size=3,stride=1,padding=0),
             torch.nn.ReLU(),
             torch.nn.Conv2d(hidden_channels,num_classes,kernel_size=1,stride=1,padding=0),
-            # torch.nn.Softmax(1)
         )
     
     def forward(self, to_crop, x):
@@ -66,17 +65,17 @@ class UNet(torch.nn.Module):
             torch.nn.MaxPool2d(kernel_size=2),
             torch.nn.MaxPool2d(kernel_size=2)
         ])
-        self.stack_1 = StackDown(3,64) # 568x568
-        self.stack_2 = StackDown(64,128) # 280x280
-        self.stack_3 = StackDown(128,256) # 136x136
-        self.stack_4 = StackDown(256,512) # 64x64
+        self.stack_1 = StackDown(3,64) 
+        self.stack_2 = StackDown(64,128)
+        self.stack_3 = StackDown(128,256)
+        self.stack_4 = StackDown(256,512) 
 
-        self.stack_5 = StackUp(512,1024,512) # 56x56
-        self.stack_6 = StackUp(1024,512,256) # 104x104
-        self.stack_7 = StackUp(512,256,128) # 200x200
-        self.stack_8 = StackUp(256,128,64) # 392x392
+        self.stack_5 = StackUp(512,1024,512) 
+        self.stack_6 = StackUp(1024,512,256)
+        self.stack_7 = StackUp(512,256,128)
+        self.stack_8 = StackUp(256,128,64) 
 
-        self.seg_head = SegmentationHead(128,64,num_classes) # 388x388
+        self.seg_head = SegmentationHead(128,64,num_classes) 
 
     def forward(self,x):
         st_1_res = self.stack_1(x)
